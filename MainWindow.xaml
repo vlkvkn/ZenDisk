@@ -1,0 +1,300 @@
+<Window x:Class="ZenDisk.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ZenDisk"
+        mc:Ignorable="d"
+        Title="ZenDisk - Disk Space Analyzer" Height="700" Width="1200"
+        WindowStartupLocation="CenterScreen"
+        Icon="/Assets/ZenDisk.ico">
+    
+    <Window.Resources>
+
+        <!-- Converters -->
+        <local:PercentageToWidthConverter x:Key="PercentageToWidthConverter"/>
+        <local:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+        <local:BoolToTypeConverter x:Key="BoolToTypeConverter"/>
+        
+        <!-- TreeView Item Template -->
+        <HierarchicalDataTemplate x:Key="FileSystemItemTemplate" ItemsSource="{Binding Children}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Icon  -->
+                <TextBlock Grid.Column="0" 
+                          Text="{Binding Icon}"
+                          FontFamily="Segoe MDL2 Assets" 
+                          FontSize="16" 
+                          VerticalAlignment="Center" 
+                          Margin="0,0,8,0"/>
+
+                <!-- Name -->
+                <TextBlock Grid.Column="1" 
+                          Text="{Binding Name}" 
+                          VerticalAlignment="Center"
+                          TextTrimming="CharacterEllipsis"/>
+                
+                <!-- Size -->
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center"
+                            Margin="8,0">
+                    <TextBlock Text="{Binding FormattedSize}"
+                               FontWeight="SemiBold"/>
+                </StackPanel>
+                
+                <!-- Size Bar -->
+                <Grid Grid.Column="3"
+                      Width="100"
+                      Height="16"
+                      Margin="8,0,0,0">
+                    <!-- Track -->
+                    <Border Background="#E0E0E0"
+                            CornerRadius="8"/>
+
+                    <!-- Fill -->
+                    <Border Background="#4CAF50"
+                            CornerRadius="8"
+                            HorizontalAlignment="Left"
+                            Height="16"
+                            Width="{Binding SizePercentage, Converter={StaticResource PercentageToWidthConverter}}">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsDriveRoot}" Value="True">
+                                        <Setter Property="Background" Value="#2196F3"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                    </Border>
+
+                    <!-- Percent label inside the bar -->
+                    <TextBlock Text="{Binding SizePercentage, StringFormat={}{0:n0}%}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               Foreground="#1A1A1A"/>
+                </Grid>
+
+                <!-- Drive capacity -->
+                <TextBlock Grid.Column="4"
+                           Text="{Binding DriveCapacityFormatted}"
+                           Foreground="#666666"
+                           Margin="8,0,0,0"
+                           VerticalAlignment="Center"
+                           Visibility="{Binding IsDriveRoot, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
+            </Grid>
+        </HierarchicalDataTemplate>
+        
+    </Window.Resources>
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <!-- Toolbar -->
+        <ToolBar Grid.Row="0" Background="#F5F5F5">
+            <ComboBox x:Name="DriveComboBox" 
+                     Width="120" 
+                     Margin="5"
+                     DisplayMemberPath="DisplayText"
+                     SelectedValuePath="RootPath"/>
+            <Button Content="Scan Drive" 
+                   Command="{Binding ScanCommand}"
+                   CommandParameter="{Binding SelectedValue, ElementName=DriveComboBox}"
+                   Margin="5"
+                   Padding="10,5"/>
+            <Button Content="Browse Folder..." 
+                   Click="BrowseFolder_Click"
+                   IsEnabled="{Binding IsNotScanning}"
+                   Margin="5"
+                   Padding="10,5"/>
+            <Separator/>
+            <Button Content="Cancel Scan" 
+                   Command="{Binding CancelScanCommand}"
+                   Margin="5"
+                   Padding="10,5"/>
+        </ToolBar>
+        
+        <!-- Progress Bar -->
+        <Grid Grid.Row="1" Background="#F0F0F0" Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <ProgressBar Grid.Row="0" 
+                        Value="{Binding ProgressValue}" 
+                        Height="20" 
+                        Margin="10,5"/>
+            <TextBlock Grid.Row="1" 
+                      Text="{Binding StatusText}" 
+                      HorizontalAlignment="Center" 
+                      Margin="10,2"/>
+        </Grid>
+        
+        <!-- Main Content -->
+        <Grid Grid.Row="2">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="5"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            
+            <!-- TreeView -->
+            <TreeView Grid.Column="0" 
+                     x:Name="FileSystemTreeView"
+                     ItemsSource="{Binding RootItems}"
+                     ItemTemplate="{StaticResource FileSystemItemTemplate}"
+                     SelectedItemChanged="TreeView_SelectedItemChanged"
+                     MouseDoubleClick="TreeView_MouseDoubleClick"
+                     KeyDown="TreeView_KeyDown"
+                     PreviewMouseLeftButtonDown="FileSystemTreeView_PreviewMouseLeftButtonDown"
+                     Background="White"
+                     BorderBrush="#CCCCCC"
+                     BorderThickness="1"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling">
+                <TreeView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="Open" Click="ContextMenu_Open_Click" 
+                                  Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
+                        <MenuItem Header="Open Folder" Click="ContextMenu_OpenFolder_Click" 
+                                  Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                        <Separator/>
+                        <MenuItem Header="Delete" Click="ContextMenu_Delete_Click"/>
+                    </ContextMenu>
+                </TreeView.ContextMenu>
+                <TreeView.ItemContainerStyle>
+                    <Style TargetType="TreeViewItem">
+                        <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                        <Setter Property="Padding" Value="2"/>
+                        <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True"/>
+                        <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter Property="Background" Value="#D0E7FF"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TreeView.ItemContainerStyle>
+            </TreeView>
+            
+            <!-- Splitter -->
+            <GridSplitter Grid.Column="1" 
+                         HorizontalAlignment="Stretch" 
+                         Background="#CCCCCC"/>
+            
+            <!-- Details Panel -->
+            <Grid Grid.Column="2" Background="#FAFAFA">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Grid.Row="0" 
+                          Text="Details" 
+                          FontWeight="Bold" 
+                          FontSize="14" 
+                          Margin="10,10,10,5"/>
+                
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="10">
+                        <TextBlock Text="Name:" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding SelectedItem.Name, Mode=OneWay, FallbackValue=''}" 
+                                 TextWrapping="Wrap" 
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"/>
+                        
+                        <TextBlock Text="Path:" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding SelectedItem.FullPath, Mode=OneWay, FallbackValue=''}" 
+                                 TextWrapping="Wrap" 
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"/>
+                        
+                        <TextBlock Text="Size:" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding SelectedItem.FormattedSize, Mode=OneWay, FallbackValue=''}" 
+                                 FontSize="16" 
+                                 FontWeight="Bold" 
+                                 Foreground="#4CAF50"
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"/>
+                        
+                        <TextBlock Text="Type:" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToTypeConverter}, Mode=OneWay, FallbackValue=''}" 
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Drive Capacity:" FontWeight="SemiBold"
+                                  Visibility="{Binding SelectedItem.IsDriveRoot, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                        <TextBox Text="{Binding SelectedItem.DriveCapacityFormatted, Mode=OneWay, FallbackValue=''}"
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"
+                                 Visibility="{Binding SelectedItem.IsDriveRoot, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                        
+                        <TextBlock Text="Extension:" FontWeight="SemiBold" 
+                                  Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
+                        <TextBox Text="{Binding SelectedItem.Extension, Mode=OneWay, FallbackValue=''}" 
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"
+                                 Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert, FallbackValue=Collapsed}"/>
+                        
+                        <TextBlock Text="Items:" FontWeight="SemiBold" 
+                                  Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                        <TextBox Text="{Binding SelectedItem.Children.Count, Mode=OneWay, FallbackValue=''}" 
+                                 IsReadOnly="True"
+                                 BorderThickness="0"
+                                 Background="Transparent"
+                                 Padding="0"
+                                 Margin="0,0,0,10"
+                                 Visibility="{Binding SelectedItem.IsDirectory, Converter={StaticResource BoolToVisibilityConverter}, FallbackValue=Collapsed}"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
+        
+        <!-- Status Bar -->
+        <StatusBar Grid.Row="3" Background="#E0E0E0">
+            <StatusBarItem>
+                <TextBlock Text="{Binding CurrentPath}" 
+                          TextTrimming="CharacterEllipsis" 
+                          MaxWidth="700"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <TextBlock Text="{Binding StatusText}"
+                           Width="200"/>
+            </StatusBarItem>
+        </StatusBar>
+    </Grid>
+</Window>

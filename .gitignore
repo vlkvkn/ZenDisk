@@ -1,0 +1,10 @@
+# Build
+debug/
+bin/
+obj/
+
+#Cursor
+.cursorrules
+
+#Visual Studio
+.vs/
