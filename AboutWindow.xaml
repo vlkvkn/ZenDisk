@@ -31,7 +31,7 @@
 
         <TextBlock Grid.Row="2"
                    Margin="0,0,0,8">
-            <Hyperlink NavigateUri="https://github.com/"
+            <Hyperlink NavigateUri="https://github.com/vlkvkn/ZenDisk"
                        RequestNavigate="GitHubLink_RequestNavigate">
                 <Run x:Name="RepositoryTextRun" Text="https://github.com/vlkvkn/ZenDisk"/>
             </Hyperlink>
