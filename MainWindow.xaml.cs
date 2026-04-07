@@ -57,6 +57,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private void ShowAbout_Click(object sender, RoutedEventArgs e)
+    {
+        var aboutWindow = new AboutWindow
+        {
+            Owner = this
+        };
+
+        aboutWindow.ShowDialog();
+    }
+
     private void TreeView_MouseDoubleClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
     {
         if (FileSystemTreeView.SelectedItem is FileItem fileItem)
